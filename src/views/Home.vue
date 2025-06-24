@@ -1,6 +1,5 @@
 <template>
   <div class="container">
-    <h1 class="title">News</h1>
     <div v-for="item in parsedItems" :key="item.id" class="card mb-4">
       <header v-if="item.type" class="card-header">
         <p class="card-header-title">{{ item.type }}</p>
