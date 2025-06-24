@@ -2,23 +2,48 @@
   <div class="container">
     <h1 class="title">News</h1>
     <ul class="menu-list">
-      <li v-for="item in items" :key="item.id">{{ item.text }}</li>
+      <li v-for="item in visibleItems" :key="item.id">{{ item.text }}</li>
     </ul>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { dbPromise } from "../db";
 import CryptoJS from "crypto-js";
 
 const items = ref([]);
+const visibleItems = computed(() => items.value.slice(0, 10));
 
 async function loadItems() {
   const db = await dbPromise;
-  const tx = db.transaction("news");
+  const pwd = (await db.get("settings", "password")) || "";
+  const keyBytes = pwd
+    ? CryptoJS.enc.Utf8.parse(pwd.padEnd(8, "\0").slice(0, 8))
+    : null;
+  const tx = db.transaction("news", "readwrite");
   const all = await tx.store.getAll();
-  items.value = all;
+  all.sort((a, b) => b.id - a.id);
+  const latest = all.slice(0, 10);
+  if (keyBytes) {
+    for (const item of latest) {
+      try {
+        const ciphertext = CryptoJS.enc.Base64.parse(item.text);
+        const plain = CryptoJS.DES.decrypt({ ciphertext }, keyBytes, {
+          mode: CryptoJS.mode.ECB,
+          padding: CryptoJS.pad.Pkcs7,
+        }).toString(CryptoJS.enc.Utf8);
+        if (plain) {
+          item.text = plain;
+          tx.store.put(item);
+        }
+      } catch {
+        // not encrypted or failed to decrypt
+      }
+    }
+  }
+  items.value = latest;
+  await tx.done;
 }
 
 async function connectStream() {
@@ -60,7 +85,8 @@ async function connectStream() {
       const news = { id: Date.now() + Math.random(), text };
       const txw = db.transaction("news", "readwrite");
       txw.store.add(news);
-      items.value.push(news);
+      items.value.unshift(news);
+      if (items.value.length > 10) items.value.pop();
     }
   }
 }
