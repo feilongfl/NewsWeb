@@ -1,0 +1,9 @@
+{
+  "name": "News SPA",
+  "short_name": "News",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "description": "News app",
+  "icons": []
+}
