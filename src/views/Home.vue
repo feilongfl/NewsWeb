@@ -1,58 +1,17 @@
 <template>
   <div class="container">
-    <div v-for="item in parsedItems" :key="item.id" class="card mb-4">
-      <header class="card-header">
-        <p class="card-header-title">
-          <a
-            v-if="item.link"
-            :href="item.link"
-            target="_blank"
-            rel="noopener"
-            >{{ item.title }}</a
-          >
-          <span v-else>{{ item.title }}</span>
-        </p>
-        <span v-if="item.type" class="card-header-icon">{{ item.type }}</span>
-      </header>
-      <div class="card-content">
-        <p v-if="item.content">{{ item.content }}</p>
-        <p v-else>{{ item.raw }}</p>
-      </div>
-    </div>
-  </div>
-</template>
-
-<script setup>
-import { ref, computed, onMounted } from "vue";
-import { dbPromise } from "../db";
-import CryptoJS from "crypto-js";
-
-const items = ref([]);
-const visibleItems = computed(() => items.value.slice(0, 10));
-const parsedItems = computed(() =>
-  visibleItems.value.map((item) => {
-    if (item.text) {
-      try {
-        const data = JSON.parse(item.text);
-        return { id: item.id, ...data };
-      } catch {
-        return { id: item.id, raw: item.text };
-      }
-    }
-    return item;
-  }),
-);
-
-async function loadItems() {
-  const db = await dbPromise;
-  const pwd = (await db.get("settings", "password")) || "";
-  const keyBytes = pwd
+    <div v-for="item in parsedItems" :key="item.link" class="card mb-4">
+const parsedItems = computed(() => visibleItems.value);
+  const tx = db.transaction("news");
+  all.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  items.value = all.slice(0, 10);
     ? CryptoJS.enc.Utf8.parse(pwd.padEnd(8, "\0").slice(0, 8))
     : null;
-  const tx = db.transaction("news", "readwrite");
-  const all = await tx.store.getAll();
-  all.sort((a, b) => b.id - a.id);
-  const latest = all.slice(0, 10);
+        let news;
+          news = JSON.parse(text);
+          continue;
+        news.ts = Date.now();
+        txw.store.put(news);
   for (const item of latest) {
     if (item.text) {
       let text = item.text;
