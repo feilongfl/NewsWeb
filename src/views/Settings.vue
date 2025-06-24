@@ -14,6 +14,12 @@
       </div>
     </div>
     <div class="field">
+      <label class="label">Reconnect Delay (ms)</label>
+      <div class="control">
+        <input class="input" v-model.number="reconnectDelay" type="number" />
+      </div>
+    </div>
+    <div class="field">
       <div class="control">
         <button class="button is-primary" @click="save">Save</button>
       </div>
@@ -27,6 +33,7 @@ import { dbPromise } from "../db";
 
 const pwd = ref("");
 const streamUrl = ref("https://feilongfl-1.gl.srv.us/stream");
+const reconnectDelay = ref(5000);
 
 onMounted(async () => {
   const db = await dbPromise;
@@ -34,6 +41,8 @@ onMounted(async () => {
   if (saved) pwd.value = saved;
   const url = await db.get("settings", "streamUrl");
   if (url) streamUrl.value = url;
+  const delay = await db.get("settings", "reconnectDelay");
+  if (delay) reconnectDelay.value = delay;
 });
 
 async function save() {
@@ -41,6 +50,7 @@ async function save() {
   const tx = db.transaction("settings", "readwrite");
   tx.store.put(pwd.value, "password");
   tx.store.put(streamUrl.value, "streamUrl");
+  tx.store.put(Number(reconnectDelay.value), "reconnectDelay");
   await tx.done;
   alert("saved");
 }

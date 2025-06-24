@@ -77,43 +77,58 @@ async function connectStream() {
   const url =
     (await db.get("settings", "streamUrl")) ||
     "https://feilongfl-1.gl.srv.us/stream";
+  const delay = (await db.get("settings", "reconnectDelay")) || 5000;
   const keyBytes = pwd
     ? CryptoJS.enc.Utf8.parse(pwd.padEnd(8, "\0").slice(0, 8))
     : null;
 
-  const resp = await fetch(url);
-  const reader = resp.body.getReader();
+  let reader;
+  try {
+    const resp = await fetch(url);
+    reader = resp.body.getReader();
+  } catch (e) {
+    console.error("stream connect error", e);
+    setTimeout(connectStream, delay);
+    return;
+  }
+
   const decoder = new TextDecoder();
   let buf = "";
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    let lines = buf.split(/\r?\n/);
-    buf = lines.pop();
-    for (let line of lines) {
-      if (!line.startsWith("data:")) continue;
-      let payload = line.slice(5).trim();
-      if (!payload) continue;
-      let text = payload;
-      if (keyBytes) {
-        try {
-          let ciphertext = CryptoJS.enc.Base64.parse(payload);
-          text = CryptoJS.DES.decrypt({ ciphertext }, keyBytes, {
-            mode: CryptoJS.mode.ECB,
-            padding: CryptoJS.pad.Pkcs7,
-          }).toString(CryptoJS.enc.Utf8);
-        } catch {
-          continue;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) throw new Error("stream closed");
+      buf += decoder.decode(value, { stream: true });
+      let lines = buf.split(/\r?\n/);
+      buf = lines.pop();
+      for (let line of lines) {
+        if (!line.startsWith("data:")) continue;
+        let payload = line.slice(5).trim();
+        if (!payload) continue;
+        let text = payload;
+        if (keyBytes) {
+          try {
+            let ciphertext = CryptoJS.enc.Base64.parse(payload);
+            text = CryptoJS.DES.decrypt({ ciphertext }, keyBytes, {
+              mode: CryptoJS.mode.ECB,
+              padding: CryptoJS.pad.Pkcs7,
+            }).toString(CryptoJS.enc.Utf8);
+            if (!text) continue;
+          } catch {
+            continue;
+          }
         }
+        const news = { id: Date.now() + Math.random(), text };
+        const txw = db.transaction("news", "readwrite");
+        txw.store.add(news);
+        items.value.unshift(news);
+        if (items.value.length > 10) items.value.pop();
       }
-      const news = { id: Date.now() + Math.random(), text };
-      const txw = db.transaction("news", "readwrite");
-      txw.store.add(news);
-      items.value.unshift(news);
-      if (items.value.length > 10) items.value.pop();
     }
+  } catch (e) {
+    console.error("stream read error", e);
   }
+  setTimeout(connectStream, delay);
 }
 
 onMounted(async () => {
