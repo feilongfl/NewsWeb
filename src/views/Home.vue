@@ -31,12 +31,15 @@ const items = ref([]);
 const visibleItems = computed(() => items.value.slice(0, 10));
 const parsedItems = computed(() =>
   visibleItems.value.map((item) => {
-    try {
-      const data = JSON.parse(item.text);
-      return { id: item.id, ...data };
-    } catch {
-      return { id: item.id, raw: item.text };
+    if (item.text) {
+      try {
+        const data = JSON.parse(item.text);
+        return { id: item.id, ...data };
+      } catch {
+        return { id: item.id, raw: item.text };
+      }
     }
+    return item;
   }),
 );
 
@@ -50,21 +53,28 @@ async function loadItems() {
   const all = await tx.store.getAll();
   all.sort((a, b) => b.id - a.id);
   const latest = all.slice(0, 10);
-  if (keyBytes) {
-    for (const item of latest) {
-      try {
-        const ciphertext = CryptoJS.enc.Base64.parse(item.text);
-        const plain = CryptoJS.DES.decrypt({ ciphertext }, keyBytes, {
-          mode: CryptoJS.mode.ECB,
-          padding: CryptoJS.pad.Pkcs7,
-        }).toString(CryptoJS.enc.Utf8);
-        if (plain) {
-          item.text = plain;
-          tx.store.put(item);
+  for (const item of latest) {
+    if (item.text) {
+      let text = item.text;
+      if (keyBytes) {
+        try {
+          const ciphertext = CryptoJS.enc.Base64.parse(item.text);
+          text = CryptoJS.DES.decrypt({ ciphertext }, keyBytes, {
+            mode: CryptoJS.mode.ECB,
+            padding: CryptoJS.pad.Pkcs7,
+          }).toString(CryptoJS.enc.Utf8);
+        } catch {
+          // failed to decrypt, keep original text
         }
-      } catch {
-        // not encrypted or failed to decrypt
       }
+      try {
+        const data = JSON.parse(text);
+        Object.assign(item, data);
+      } catch {
+        item.raw = text;
+      }
+      delete item.text;
+      tx.store.put(item);
     }
   }
   items.value = latest;
@@ -118,7 +128,12 @@ async function connectStream() {
             continue;
           }
         }
-        const news = { id: Date.now() + Math.random(), text };
+        let news = { id: Date.now() + Math.random() };
+        try {
+          Object.assign(news, JSON.parse(text));
+        } catch {
+          news.raw = text;
+        }
         const txw = db.transaction("news", "readwrite");
         txw.store.add(news);
         items.value.unshift(news);
