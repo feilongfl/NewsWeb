@@ -1,11 +1,17 @@
 <template>
-  <div>
-    <h1>Settings</h1>
-    <label
-      >Password
-      <input v-model="pwd" type="text" />
-    </label>
-    <button @click="save">Save</button>
+  <div class="container">
+    <h1 class="title">Settings</h1>
+    <div class="field">
+      <label class="label">Password</label>
+      <div class="control">
+        <input class="input" v-model="pwd" type="text" />
+      </div>
+    </div>
+    <div class="field">
+      <div class="control">
+        <button class="button is-primary" @click="save">Save</button>
+      </div>
+    </div>
   </div>
 </template>
 

@@ -1,6 +1,7 @@
 import { createApp } from "vue";
 import { createRouter, createWebHashHistory } from "vue-router";
 import App from "./App.vue";
+import "bulma/css/bulma.min.css";
 import Home from "./views/Home.vue";
 import Settings from "./views/Settings.vue";
 

@@ -1,7 +1,7 @@
 <template>
-  <div>
-    <h1>News</h1>
-    <ul>
+  <div class="container">
+    <h1 class="title">News</h1>
+    <ul class="menu-list">
       <li v-for="item in items" :key="item.id">{{ item.text }}</li>
     </ul>
   </div>

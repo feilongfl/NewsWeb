@@ -1,21 +1,19 @@
 <template>
   <div>
-    <nav>
-      <router-link to="/">Home</router-link> |
-      <router-link to="/settings">Settings</router-link>
+    <nav class="navbar is-light" role="navigation" aria-label="main navigation">
+      <div class="navbar-menu is-active">
+        <div class="navbar-start">
+          <router-link class="navbar-item" to="/">Home</router-link>
+          <router-link class="navbar-item" to="/settings">Settings</router-link>
+        </div>
+      </div>
     </nav>
-    <router-view />
+    <section class="section">
+      <router-view />
+    </section>
   </div>
 </template>
 
 <script setup></script>
 
-<style scoped>
-nav {
-  padding: 1rem;
-  background: #f0f0f0;
-}
-nav a {
-  margin-right: 1rem;
-}
-</style>
+<style scoped></style>
