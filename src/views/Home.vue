@@ -1,9 +1,25 @@
 <template>
   <div class="container">
     <h1 class="title">News</h1>
-    <ul class="menu-list">
-      <li v-for="item in visibleItems" :key="item.id">{{ item.text }}</li>
-    </ul>
+    <div v-for="item in parsedItems" :key="item.id" class="card mb-4">
+      <header v-if="item.type" class="card-header">
+        <p class="card-header-title">{{ item.type }}</p>
+      </header>
+      <div class="card-content">
+        <p v-if="item.title" class="title is-5">
+          <a
+            v-if="item.link"
+            :href="item.link"
+            target="_blank"
+            rel="noopener"
+            >{{ item.title }}</a
+          >
+          <span v-else>{{ item.title }}</span>
+        </p>
+        <p v-if="item.content">{{ item.content }}</p>
+        <p v-else>{{ item.raw }}</p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -14,6 +30,16 @@ import CryptoJS from "crypto-js";
 
 const items = ref([]);
 const visibleItems = computed(() => items.value.slice(0, 10));
+const parsedItems = computed(() =>
+  visibleItems.value.map((item) => {
+    try {
+      const data = JSON.parse(item.text);
+      return { id: item.id, ...data };
+    } catch {
+      return { id: item.id, raw: item.text };
+    }
+  }),
+);
 
 async function loadItems() {
   const db = await dbPromise;
