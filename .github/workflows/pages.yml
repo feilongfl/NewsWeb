@@ -1,8 +1,9 @@
-name: Deploy to GitHub Pages
+name: Build & Deploy to GitHub Pages
 
 on:
   push:
     branches: [main]
+  pull_request:  # 添加 PR 检查
   workflow_dispatch:
 
 permissions:
@@ -25,16 +26,20 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run build
-      - uses: actions/configure-pages@v4
-      - uses: actions/upload-pages-artifact@v1
-        with:
-          path: dist
+    # 只在 push 到 main 时上传构建产物
+    if: github.event_name != 'pull_request'
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/configure-pages@v4
+      - uses: actions/upload-pages-artifact@v1
+        with:
+          path: dist
       - id: deployment
         uses: actions/deploy-pages@v1
