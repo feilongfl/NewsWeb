@@ -10,8 +10,9 @@ const routes = [
   { path: "/settings", component: Settings },
 ];
 
+const base = window.location.pathname.replace(/\/[^/]*$/, "/");
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHashHistory(base),
   routes,
 });
 
