@@ -1,11 +1,8 @@
 <template>
   <div class="container">
     <div v-for="item in parsedItems" :key="item.id" class="card mb-4">
-      <header v-if="item.type" class="card-header">
-        <p class="card-header-title">{{ item.type }}</p>
-      </header>
-      <div class="card-content">
-        <p v-if="item.title" class="title is-5">
+      <header class="card-header">
+        <p class="card-header-title">
           <a
             v-if="item.link"
             :href="item.link"
@@ -15,6 +12,9 @@
           >
           <span v-else>{{ item.title }}</span>
         </p>
+        <span v-if="item.type" class="card-header-icon">{{ item.type }}</span>
+      </header>
+      <div class="card-content">
         <p v-if="item.content">{{ item.content }}</p>
         <p v-else>{{ item.raw }}</p>
       </div>
