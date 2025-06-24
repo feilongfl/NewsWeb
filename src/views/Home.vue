@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <div v-for="item in parsedItems" :key="item.id" class="card mb-4">
+    <div v-for="item in parsedItems" :key="item.link" class="card mb-4">
       <header v-if="item.type" class="card-header">
         <p class="card-header-title">{{ item.type }}</p>
       </header>
@@ -29,46 +29,14 @@ import CryptoJS from "crypto-js";
 
 const items = ref([]);
 const visibleItems = computed(() => items.value.slice(0, 10));
-const parsedItems = computed(() =>
-  visibleItems.value.map((item) => {
-    try {
-      const data = JSON.parse(item.text);
-      return { id: item.id, ...data };
-    } catch {
-      return { id: item.id, raw: item.text };
-    }
-  }),
-);
+const parsedItems = computed(() => visibleItems.value);
 
 async function loadItems() {
   const db = await dbPromise;
-  const pwd = (await db.get("settings", "password")) || "";
-  const keyBytes = pwd
-    ? CryptoJS.enc.Utf8.parse(pwd.padEnd(8, "\0").slice(0, 8))
-    : null;
-  const tx = db.transaction("news", "readwrite");
+  const tx = db.transaction("news");
   const all = await tx.store.getAll();
-  all.sort((a, b) => b.id - a.id);
-  const latest = all.slice(0, 10);
-  if (keyBytes) {
-    for (const item of latest) {
-      try {
-        const ciphertext = CryptoJS.enc.Base64.parse(item.text);
-        const plain = CryptoJS.DES.decrypt({ ciphertext }, keyBytes, {
-          mode: CryptoJS.mode.ECB,
-          padding: CryptoJS.pad.Pkcs7,
-        }).toString(CryptoJS.enc.Utf8);
-        if (plain) {
-          item.text = plain;
-          tx.store.put(item);
-        }
-      } catch {
-        // not encrypted or failed to decrypt
-      }
-    }
-  }
-  items.value = latest;
-  await tx.done;
+  all.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  items.value = all.slice(0, 10);
 }
 
 async function connectStream() {
@@ -118,9 +86,15 @@ async function connectStream() {
             continue;
           }
         }
-        const news = { id: Date.now() + Math.random(), text };
-        const txw = db.transaction("news", "readwrite");
-        txw.store.add(news);
+        let news;
+        try {
+          news = JSON.parse(text);
+        } catch {
+          continue;
+        }
+        if (!news.link) continue;
+        news.ts = Date.now();
+        await db.put("news", news);
         items.value.unshift(news);
         if (items.value.length > 10) items.value.pop();
       }
