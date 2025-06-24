@@ -9,17 +9,10 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import { openDB } from "idb";
+import { dbPromise } from "../db";
 import CryptoJS from "crypto-js";
 
 const items = ref([]);
-
-const dbPromise = openDB("news-db", 1, {
-  upgrade(db) {
-    db.createObjectStore("news", { keyPath: "id" });
-    db.createObjectStore("settings");
-  },
-});
 
 async function loadItems() {
   const db = await dbPromise;
@@ -31,11 +24,14 @@ async function loadItems() {
 async function connectStream() {
   const db = await dbPromise;
   const pwd = (await db.get("settings", "password")) || "";
+  const url =
+    (await db.get("settings", "streamUrl")) ||
+    "https://feilongfl-1.gl.srv.us/stream";
   const keyBytes = pwd
     ? CryptoJS.enc.Utf8.parse(pwd.padEnd(8, "\0").slice(0, 8))
     : null;
 
-  const resp = await fetch("https://feilongfl-1.gl.srv.us/stream");
+  const resp = await fetch(url);
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
   let buf = "";
