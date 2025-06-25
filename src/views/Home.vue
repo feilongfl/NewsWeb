@@ -17,8 +17,8 @@
       <div class="card-content">
         <p v-if="item.content">{{ item.content }}</p>
         <p v-else>{{ item.raw }}</p>
-        <div v-if="item.time" class="has-text-right is-size-7 mt-2">
-          {{ item.time }}
+        <div v-if="item.displayTime" class="has-text-right is-size-7 mt-2">
+          {{ item.displayTime }}
         </div>
       </div>
     </div>
@@ -29,20 +29,46 @@
 import { ref, computed, onMounted } from "vue";
 import { dbPromise } from "../db";
 import CryptoJS from "crypto-js";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import relativeTime from "dayjs/plugin/relativeTime";
+import "dayjs/locale/zh-cn";
+
+dayjs.extend(utc);
+dayjs.extend(relativeTime);
+dayjs.locale("zh-cn");
 
 const items = ref([]);
 const visibleItems = computed(() => items.value.slice(0, 10));
 const parsedItems = computed(() =>
   visibleItems.value.map((item) => {
+    let obj;
     if (item.text) {
       try {
         const data = JSON.parse(item.text);
-        return { id: item.id, ...data };
+        obj = { id: item.id, ...data };
       } catch {
-        return { id: item.id, raw: item.text };
+        obj = { id: item.id, raw: item.text };
+      }
+    } else {
+      obj = { ...item };
+    }
+
+    if (obj.time) {
+      const t = dayjs.utc(obj.time.replace("_", " ") + "+08:00").local();
+      const now = dayjs();
+      if (now.isSame(t, "day")) {
+        if (now.diff(t, "second") < 86400) {
+          obj.displayTime = t.fromNow();
+        } else {
+          obj.displayTime = t.format("HH:mm:ss");
+        }
+      } else {
+        obj.displayTime = t.format("YYYY-MM-DD HH:mm:ss");
       }
     }
-    return item;
+
+    return obj;
   }),
 );
 
