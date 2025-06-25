@@ -5,8 +5,20 @@
         <router-link class="navbar-item" to="/">
           <img :src="logo" alt="logo" />
         </router-link>
+        <a
+          role="button"
+          class="navbar-burger"
+          :class="{ 'is-active': isMenuActive }"
+          aria-label="menu"
+          aria-expanded="false"
+          @click="isMenuActive = !isMenuActive"
+        >
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+        </a>
       </div>
-      <div class="navbar-menu is-active">
+      <div class="navbar-menu" :class="{ 'is-active': isMenuActive }">
         <div class="navbar-start">
           <router-link class="navbar-item" to="/">Home</router-link>
           <router-link class="navbar-item" to="/settings">Settings</router-link>
@@ -28,6 +40,7 @@ import logoUrl from "./assets/logo.svg";
 
 const logo = logoUrl;
 const now = ref("");
+const isMenuActive = ref(false);
 let timer;
 
 onMounted(() => {
