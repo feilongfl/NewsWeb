@@ -1,56 +1,44 @@
 <template>
   <div class="container">
-    <div v-for="item in parsedItems" :key="item.id" class="card mb-4">
-      <header class="card-header">
-        <p class="card-header-title">
-          <a
-            v-if="item.link"
-            :href="item.link"
-            target="_blank"
-            rel="noopener"
-            >{{ item.title }}</a
-          >
-          <span v-else>{{ item.title }}</span>
-        </p>
-        <span v-if="item.type" class="card-header-icon">{{ item.type }}</span>
-      </header>
-      <div class="card-content">
-        <p v-if="item.content">{{ item.content }}</p>
-        <p v-else>{{ item.raw }}</p>
-        <div v-if="item.displayTime" class="has-text-right is-size-7 mt-2">
-          {{ item.displayTime }}
-        </div>
-      </div>
-    </div>
-    <nav
-      class="pagination"
-      role="navigation"
-      aria-label="pagination"
-      v-if="totalPages > 1"
+    <DynamicScroller
+      class="scroller"
+      :items="displayItems"
+      :min-item-size="80"
+      key-field="id"
+      @scroll-end="loadMore"
+      v-slot="{ item }"
     >
-      <a
-        class="pagination-previous"
-        @click="currentPage--"
-        :disabled="currentPage <= 1"
-        >Previous</a
+      <DynamicScrollerItem
+        :item="item"
+        :size-dependencies="[item.content, item.raw]"
       >
-      <a
-        class="pagination-next"
-        @click="currentPage++"
-        :disabled="currentPage >= totalPages"
-        >Next</a
-      >
-      <ul class="pagination-list">
-        <li v-for="page in totalPages" :key="page">
-          <a
-            class="pagination-link"
-            :class="{ 'is-current': page === currentPage }"
-            @click="currentPage = page"
-            >{{ page }}</a
-          >
-        </li>
-      </ul>
-    </nav>
+        <div class="card mb-4">
+          <header class="card-header">
+            <p class="card-header-title">
+              <a
+                v-if="item.link"
+                :href="item.link"
+                target="_blank"
+                rel="noopener"
+              >
+                {{ item.title }}
+              </a>
+              <span v-else>{{ item.title }}</span>
+            </p>
+            <span v-if="item.type" class="card-header-icon">
+              {{ item.type }}
+            </span>
+          </header>
+          <div class="card-content">
+            <p v-if="item.content">{{ item.content }}</p>
+            <p v-else>{{ item.raw }}</p>
+            <div v-if="item.displayTime" class="has-text-right is-size-7 mt-2">
+              {{ item.displayTime }}
+            </div>
+          </div>
+        </div>
+      </DynamicScrollerItem>
+    </DynamicScroller>
   </div>
 </template>
 
@@ -61,6 +49,7 @@ import CryptoJS from "crypto-js";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { DynamicScroller, DynamicScrollerItem } from "vue-virtual-scroller";
 import "dayjs/locale/zh-cn";
 
 dayjs.extend(utc);
@@ -69,18 +58,10 @@ dayjs.locale("zh-cn");
 
 const items = ref([]);
 const pageSize = ref(10);
-const currentPage = ref(1);
-const visibleItems = computed(() =>
-  items.value.slice(
-    (currentPage.value - 1) * pageSize.value,
-    currentPage.value * pageSize.value,
-  ),
-);
-const totalPages = computed(() =>
-  Math.max(1, Math.ceil(items.value.length / pageSize.value)),
-);
+const displayCount = ref(pageSize.value);
+const displayItems = computed(() => items.value.slice(0, displayCount.value));
 const parsedItems = computed(() =>
-  visibleItems.value.map((item) => {
+  displayItems.value.map((item) => {
     let obj;
     if (item.text) {
       try {
@@ -117,6 +98,15 @@ function sendNotification(item) {
     new Notification(item.title || "News", {
       body: item.content || item.raw || "",
     });
+  }
+}
+
+function loadMore() {
+  if (displayCount.value < items.value.length) {
+    displayCount.value = Math.min(
+      displayCount.value + pageSize.value,
+      items.value.length,
+    );
   }
 }
 
@@ -229,6 +219,7 @@ onMounted(async () => {
   const db = await dbPromise;
   const ps = await db.get("settings", "pageSize");
   if (ps) pageSize.value = ps;
+  displayCount.value = pageSize.value;
   await loadItems();
   connectStream();
 });
