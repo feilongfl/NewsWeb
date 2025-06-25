@@ -6,13 +6,17 @@
       :min-item-size="80"
       key-field="id"
       @scroll-end="loadMore"
-      v-slot="{ item }"
+      v-slot="{ item, active }"
     >
+      <!-- 包裹层：用内边距代替外边距，避免高度测量错误 -->
       <DynamicScrollerItem
         :item="item"
-        :size-dependencies="[item.content, item.raw]"
+        :active="active"
+        :size-dependencies="[item.content, item.raw, item.displayTime]"
+        tag="div"
+        class="item-wrapper"
       >
-        <div class="card mb-4">
+        <div class="card">
           <header class="card-header">
             <p class="card-header-title">
               <a
@@ -30,11 +34,11 @@
             </span>
           </header>
           <div class="card-content">
-            <p v-if="item.content">{{ item.content }}</p>
-            <p v-else>{{ item.raw }}</p>
-            <div v-if="item.displayTime" class="has-text-right is-size-7 mt-2">
-              {{ item.displayTime }}
-            </div>
+            <div class="content" v-if="item.content">{{ item.content }}</div>
+            <div class="content" v-else>{{ item.raw }}</div>
+            <footer class="card-footer" v-if="item.time">
+              <div class="card-footer-item">{{ item.time }}</div>
+            </footer>
           </div>
         </div>
       </DynamicScrollerItem>
@@ -59,6 +63,7 @@ dayjs.locale("zh-cn");
 const items = ref([]);
 const pageSize = ref(10);
 const displayCount = ref(pageSize.value);
+
 const displayItems = computed(() => items.value.slice(0, displayCount.value));
 const parsedItems = computed(() =>
   displayItems.value.map((item) => {
@@ -78,11 +83,8 @@ const parsedItems = computed(() =>
       const t = dayjs.utc(obj.time.replace("_", " ") + "+08:00").local();
       const now = dayjs();
       if (now.isSame(t, "day")) {
-        if (now.diff(t, "second") < 86400) {
-          obj.displayTime = t.fromNow();
-        } else {
-          obj.displayTime = t.format("HH:mm:ss");
-        }
+        obj.displayTime =
+          now.diff(t, "second") < 86400 ? t.fromNow() : t.format("HH:mm:ss");
       } else {
         obj.displayTime = t.format("YYYY-MM-DD HH:mm:ss");
       }
@@ -119,6 +121,7 @@ async function loadItems() {
   const tx = db.transaction("news", "readwrite");
   const all = await tx.store.getAll();
   all.sort((a, b) => b.id - a.id);
+
   for (const item of all) {
     if (item.text) {
       let text = item.text;
@@ -130,7 +133,7 @@ async function loadItems() {
             padding: CryptoJS.pad.Pkcs7,
           }).toString(CryptoJS.enc.Utf8);
         } catch {
-          // failed to decrypt, keep original text
+          /* keep original */
         }
       }
       try {
@@ -184,7 +187,7 @@ async function connectStream() {
         let text = payload;
         if (keyBytes) {
           try {
-            let ciphertext = CryptoJS.enc.Base64.parse(payload);
+            const ciphertext = CryptoJS.enc.Base64.parse(payload);
             text = CryptoJS.DES.decrypt({ ciphertext }, keyBytes, {
               mode: CryptoJS.mode.ECB,
               padding: CryptoJS.pad.Pkcs7,
@@ -224,3 +227,11 @@ onMounted(async () => {
   connectStream();
 });
 </script>
+
+<style scoped>
+/* 用内边距替代外边距，防止高度测量误差 */
+.item-wrapper {
+  padding-bottom: 1rem; /* 相当于原来的 mb-4 */
+  box-sizing: border-box;
+}
+</style>
