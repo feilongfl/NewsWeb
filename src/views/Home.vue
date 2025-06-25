@@ -17,6 +17,9 @@
       <div class="card-content">
         <p v-if="item.content">{{ item.content }}</p>
         <p v-else>{{ item.raw }}</p>
+        <div v-if="item.time" class="has-text-right is-size-7 mt-2">
+          {{ item.time }}
+        </div>
       </div>
     </div>
   </div>
