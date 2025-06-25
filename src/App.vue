@@ -1,6 +1,6 @@
 <template>
   <div>
-    <nav class="navbar is-light" role="navigation" aria-label="main navigation">
+    <nav class="navbar is-dark is-fixed-top" role="navigation" aria-label="main navigation">
       <div class="navbar-brand">
         <router-link class="navbar-item" to="/">
           <img :src="logo" alt="logo" />
