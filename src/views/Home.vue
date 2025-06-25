@@ -43,6 +43,15 @@ const parsedItems = computed(() =>
   }),
 );
 
+function sendNotification(item) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") {
+    new Notification(item.title || "News", {
+      body: item.content || item.raw || "",
+    });
+  }
+}
+
 async function loadItems() {
   const db = await dbPromise;
   const pwd = (await db.get("settings", "password")) || "";
@@ -137,6 +146,7 @@ async function connectStream() {
         const txw = db.transaction("news", "readwrite");
         txw.store.add(news);
         items.value.unshift(news);
+        sendNotification(news);
         if (items.value.length > 10) items.value.pop();
       }
     }
@@ -147,6 +157,9 @@ async function connectStream() {
 }
 
 onMounted(async () => {
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission();
+  }
   await loadItems();
   connectStream();
 });
