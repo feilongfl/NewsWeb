@@ -20,6 +20,12 @@
       </div>
     </div>
     <div class="field">
+      <label class="label">Items Per Page</label>
+      <div class="control">
+        <input class="input" v-model.number="pageSize" type="number" min="1" />
+      </div>
+    </div>
+    <div class="field">
       <div class="control">
         <button class="button is-primary" @click="save">Save</button>
       </div>
@@ -34,6 +40,7 @@ import { dbPromise } from "../db";
 const pwd = ref("");
 const streamUrl = ref("https://feilongfl-1.gl.srv.us/stream");
 const reconnectDelay = ref(5000);
+const pageSize = ref(10);
 
 onMounted(async () => {
   const db = await dbPromise;
@@ -43,6 +50,8 @@ onMounted(async () => {
   if (url) streamUrl.value = url;
   const delay = await db.get("settings", "reconnectDelay");
   if (delay) reconnectDelay.value = delay;
+  const ps = await db.get("settings", "pageSize");
+  if (ps) pageSize.value = ps;
 });
 
 async function save() {
@@ -51,6 +60,7 @@ async function save() {
   tx.store.put(pwd.value, "password");
   tx.store.put(streamUrl.value, "streamUrl");
   tx.store.put(Number(reconnectDelay.value), "reconnectDelay");
+  tx.store.put(Number(pageSize.value), "pageSize");
   await tx.done;
   alert("saved");
 }

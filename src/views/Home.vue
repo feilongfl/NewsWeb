@@ -22,6 +22,35 @@
         </div>
       </div>
     </div>
+    <nav
+      class="pagination"
+      role="navigation"
+      aria-label="pagination"
+      v-if="totalPages > 1"
+    >
+      <a
+        class="pagination-previous"
+        @click="currentPage--"
+        :disabled="currentPage <= 1"
+        >Previous</a
+      >
+      <a
+        class="pagination-next"
+        @click="currentPage++"
+        :disabled="currentPage >= totalPages"
+        >Next</a
+      >
+      <ul class="pagination-list">
+        <li v-for="page in totalPages" :key="page">
+          <a
+            class="pagination-link"
+            :class="{ 'is-current': page === currentPage }"
+            @click="currentPage = page"
+            >{{ page }}</a
+          >
+        </li>
+      </ul>
+    </nav>
   </div>
 </template>
 
@@ -39,7 +68,17 @@ dayjs.extend(relativeTime);
 dayjs.locale("zh-cn");
 
 const items = ref([]);
-const visibleItems = computed(() => items.value.slice(0, 10));
+const pageSize = ref(10);
+const currentPage = ref(1);
+const visibleItems = computed(() =>
+  items.value.slice(
+    (currentPage.value - 1) * pageSize.value,
+    currentPage.value * pageSize.value,
+  ),
+);
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(items.value.length / pageSize.value)),
+);
 const parsedItems = computed(() =>
   visibleItems.value.map((item) => {
     let obj;
@@ -90,8 +129,7 @@ async function loadItems() {
   const tx = db.transaction("news", "readwrite");
   const all = await tx.store.getAll();
   all.sort((a, b) => b.id - a.id);
-  const latest = all.slice(0, 10);
-  for (const item of latest) {
+  for (const item of all) {
     if (item.text) {
       let text = item.text;
       if (keyBytes) {
@@ -115,7 +153,7 @@ async function loadItems() {
       tx.store.put(item);
     }
   }
-  items.value = latest;
+  items.value = all;
   await tx.done;
 }
 
@@ -176,7 +214,6 @@ async function connectStream() {
         txw.store.add(news);
         items.value.unshift(news);
         sendNotification(news);
-        if (items.value.length > 10) items.value.pop();
       }
     }
   } catch (e) {
@@ -189,6 +226,9 @@ onMounted(async () => {
   if ("Notification" in window && Notification.permission === "default") {
     Notification.requestPermission();
   }
+  const db = await dbPromise;
+  const ps = await db.get("settings", "pageSize");
+  if (ps) pageSize.value = ps;
   await loadItems();
   connectStream();
 });
