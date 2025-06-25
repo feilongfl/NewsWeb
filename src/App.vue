@@ -5,6 +5,7 @@
         <router-link class="navbar-item" to="/">
           <img :src="logo" alt="logo" />
         </router-link>
+        <div class="navbar-item is-hidden-desktop">{{ now }}</div>
         <a
           role="button"
           class="navbar-burger"
@@ -24,7 +25,7 @@
           <router-link class="navbar-item" to="/settings">Settings</router-link>
         </div>
         <div class="navbar-end">
-          <div class="navbar-item">{{ now }}</div>
+          <div class="navbar-item is-hidden-touch">{{ now }}</div>
         </div>
       </div>
     </nav>
