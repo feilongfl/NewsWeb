@@ -66,6 +66,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install system deps via Action
+        uses: ConorMacBride/install-package@v1
+        with:
+          apt: "pkg-config libssl-dev"
+
       - name: Install Rust toolchain & targets
         uses: actions-rs/toolchain@v1
         with:
