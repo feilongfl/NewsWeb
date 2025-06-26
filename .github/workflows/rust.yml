@@ -61,15 +61,12 @@ jobs:
           # —— WebAssembly ——  
           # - wasm32-unknown-unknown         # plain WASM :contentReference[oaicite:32]{index=32}  
           # - wasm32-wasi                    # WASI Preview 1 :contentReference[oaicite:33]{index=33}  
-
+    env:
+      OPENSSL_STATIC: "1"
+      OPENSSL_ONLY_STATIC: "1"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Install system deps via Action
-        uses: ConorMacBride/install-package@v1
-        with:
-          apt: "pkg-config libssl-dev"
 
       - name: Install Rust toolchain & targets
         uses: actions-rs/toolchain@v1
