@@ -1,0 +1,95 @@
+name: Rust CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'streamsrv/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'streamsrv/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          # —— Linux GNU ——
+          - x86_64-unknown-linux-gnu       # 官方 Tier 1，glibc 2.17+ :contentReference[oaicite:0]{index=0}
+          # - i586-unknown-linux-gnu         # 32-bit x86 (Pentium) :contentReference[oaicite:1]{index=1}
+          # - i686-unknown-linux-gnu         # 32-bit Linux (glibc) :contentReference[oaicite:2]{index=2}
+          - aarch64-unknown-linux-gnu      # ARM64 Linux (glibc 2.17+) :contentReference[oaicite:3]{index=3}
+          # - arm-unknown-linux-gnueabi      # ARMv6 Linux (glibc 2.17) :contentReference[oaicite:4]{index=4}
+          # - arm-unknown-linux-gnueabihf    # ARMv6 hard-float :contentReference[oaicite:5]{index=5}
+          # - armv7-unknown-linux-gnueabihf  # ARMv7 hard-float :contentReference[oaicite:6]{index=6}
+          # - mips-unknown-linux-gnu         # MIPS big-endian :contentReference[oaicite:7]{index=7}
+          # - mipsel-unknown-linux-gnu       # MIPS little-endian :contentReference[oaicite:8]{index=8}
+          # - mips64-unknown-linux-gnuabi64  # MIPS64 BE :contentReference[oaicite:9]{index=9}
+          # - mips64el-unknown-linux-gnuabi64 # MIPS64 LE :contentReference[oaicite:10]{index=10}
+          # - powerpc-unknown-linux-gnu      # PowerPC BE :contentReference[oaicite:11]{index=11}
+          # - powerpc64-unknown-linux-gnu    # PPC64 BE :contentReference[oaicite:12]{index=12}
+          # - powerpc64le-unknown-linux-gnu  # PPC64 LE :contentReference[oaicite:13]{index=13}
+          # - riscv64gc-unknown-linux-gnu    # RISC-V 64 :contentReference[oaicite:14]{index=14}
+          # - s390x-unknown-linux-gnu        # IBM s390x :contentReference[oaicite:15]{index=15}
+
+          # —— Linux musl ——
+          - x86_64-unknown-linux-musl      # musl x86_64 :contentReference[oaicite:16]{index=16}
+          # - i586-unknown-linux-musl        # musl 32-bit x86 :contentReference[oaicite:17]{index=17}
+          # - i686-unknown-linux-musl        # musl 32-bit :contentReference[oaicite:18]{index=18}
+          - aarch64-unknown-linux-musl     # musl ARM64 :contentReference[oaicite:19]{index=19}
+          # - arm-unknown-linux-musleabi     # musl ARMv6 :contentReference[oaicite:20]{index=20}
+          # - arm-unknown-linux-musleabihf   # musl ARMv6 HF :contentReference[oaicite:21]{index=21}
+          # - armv7-unknown-linux-musleabihf # musl ARMv7 HF :contentReference[oaicite:22]{index=22}
+          # - mips-unknown-linux-musl        # musl MIPS :contentReference[oaicite:23]{index=23}
+          # - mipsel-unknown-linux-musl      # musl MIPSLE :contentReference[oaicite:24]{index=24}
+          # - mips64-unknown-linux-muslabi64 # musl MIPS64 :contentReference[oaicite:25]{index=25}
+          # - mips64el-unknown-linux-muslabi64 # musl MIPS64LE :contentReference[oaicite:26]{index=26}
+
+          # —— Windows ——
+          - x86_64-pc-windows-gnu          # MinGW x86_64 :contentReference[oaicite:27]{index=27}
+          # - i686-pc-windows-gnu            # MinGW 32-bit :contentReference[oaicite:28]{index=28}
+          # - x86_64-pc-windows-msvc         # MSVC x86_64 (tier 2) :contentReference[oaicite:29]{index=29}
+
+          # —— macOS ——  
+          - x86_64-apple-darwin            # Intel macOS :contentReference[oaicite:30]{index=30}  
+          - aarch64-apple-darwin           # ARM64 macOS :contentReference[oaicite:31]{index=31}  
+
+          # —— WebAssembly ——  
+          # - wasm32-unknown-unknown         # plain WASM :contentReference[oaicite:32]{index=32}  
+          # - wasm32-wasi                    # WASI Preview 1 :contentReference[oaicite:33]{index=33}  
+    env:
+      OPENSSL_STATIC: "1"
+      OPENSSL_ONLY_STATIC: "1"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain & targets
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt
+          target: ${{ matrix.target }}
+
+      - name: Install cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+        working-directory: streamsrv
+
+      - name: Build release
+        run: cross build --release --target ${{ matrix.target }} --verbose
+        working-directory: streamsrv
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: streamsrv-${{ matrix.target }}
+          path: streamsrv/target/${{ matrix.target }}/release/streamsrv*
