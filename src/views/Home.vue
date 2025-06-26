@@ -23,7 +23,8 @@
                 :href="item.link"
                 target="_blank"
                 rel="noopener"
-              >{{ item.title }}</a>
+                >{{ item.title }}</a
+              >
               <span v-else>{{ item.title }}</span>
             </p>
             <span v-if="item.type" class="card-header-icon">
@@ -132,7 +133,9 @@ function loadMore() {
 async function loadItems() {
   const db = await dbPromise;
   const pwd = (await db.get("settings", "password")) || "";
-  const keyBytes = pwd ? CryptoJS.enc.Utf8.parse(pwd.padEnd(8, "\0").slice(0, 8)) : null;
+  const keyBytes = pwd
+    ? CryptoJS.enc.Utf8.parse(pwd.padEnd(8, "\0").slice(0, 8))
+    : null;
 
   const tx = db.transaction("news", "readwrite");
   const all = await tx.store.getAll();
@@ -148,7 +151,9 @@ async function loadItems() {
             mode: CryptoJS.mode.ECB,
             padding: CryptoJS.pad.Pkcs7,
           }).toString(CryptoJS.enc.Utf8);
-        } catch { /* 解密失败保持原样 */ }
+        } catch {
+          /* 解密失败保持原样 */
+        }
       }
       try {
         Object.assign(item, JSON.parse(text));
@@ -156,7 +161,7 @@ async function loadItems() {
         item.raw = text;
       }
       delete item.text;
-      tx.store.put(item);        // 存回解密后的版本
+      tx.store.put(item); // 存回解密后的版本
     }
   }
   items.value = all;
@@ -164,69 +169,58 @@ async function loadItems() {
 }
 
 /* ========== 服务器推流连接 ========== */
+let es;
 async function connectStream() {
   const db = await dbPromise;
   const pwd = (await db.get("settings", "password")) || "";
-  const url = (await db.get("settings", "streamUrl")) || "https://feilongfl-1.gl.srv.us/stream";
+  const url =
+    (await db.get("settings", "streamUrl")) ||
+    "https://feilongfl-1.gl.srv.us/stream";
   const delay = (await db.get("settings", "reconnectDelay")) || 5000;
-  const keyBytes = pwd ? CryptoJS.enc.Utf8.parse(pwd.padEnd(8, "\0").slice(0, 8)) : null;
+  const keyBytes = pwd
+    ? CryptoJS.enc.Utf8.parse(pwd.padEnd(8, "\0").slice(0, 8))
+    : null;
 
-  let reader;
-  try {
-    reader = (await fetch(url)).body.getReader();
-  } catch (e) {
-    console.error("stream connect error", e);
-    setTimeout(connectStream, delay);
-    return;
-  }
+  if (es) es.close();
+  es = new EventSource(url);
 
-  const decoder = new TextDecoder();
-  let buf = "";
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) throw new Error("stream closed");
-      buf += decoder.decode(value, { stream: true });
-      const lines = buf.split(/\r?\n/);
-      buf = lines.pop();           // 保留最后一行残留
+  es.onmessage = async (e) => {
+    const payload = e.data.trim();
+    if (!payload) return;
 
-      for (const line of lines) {
-        if (!line.startsWith("data:")) continue;
-        const payload = line.slice(5).trim();
-        if (!payload) continue;
-
-        /* 解密 */
-        let text = payload;
-        if (keyBytes) {
-          try {
-            const ciphertext = CryptoJS.enc.Base64.parse(payload);
-            text = CryptoJS.DES.decrypt({ ciphertext }, keyBytes, {
-              mode: CryptoJS.mode.ECB,
-              padding: CryptoJS.pad.Pkcs7,
-            }).toString(CryptoJS.enc.Utf8);
-            if (!text) continue;
-          } catch {
-            continue;
-          }
-        }
-
-        /* 解析 + 入库 + 刷新列表 */
-        const news = { id: Date.now() + Math.random() };
-        try {
-          Object.assign(news, JSON.parse(text));
-        } catch {
-          news.raw = text;
-        }
-        const txw = db.transaction("news", "readwrite");
-        txw.store.add(news);
-        items.value.unshift(news);       // 最新的放最前
-        sendNotification(news);
+    /* 解密 */
+    let text = payload;
+    if (keyBytes) {
+      try {
+        const ciphertext = CryptoJS.enc.Base64.parse(payload);
+        text = CryptoJS.DES.decrypt({ ciphertext }, keyBytes, {
+          mode: CryptoJS.mode.ECB,
+          padding: CryptoJS.pad.Pkcs7,
+        }).toString(CryptoJS.enc.Utf8);
+        if (!text) return;
+      } catch {
+        return;
       }
     }
-  } catch (e) {
-    console.error("stream read error", e);
-  }
-  setTimeout(connectStream, delay);
+
+    /* 解析 + 入库 + 刷新列表 */
+    const news = { id: Date.now() + Math.random() };
+    try {
+      Object.assign(news, JSON.parse(text));
+    } catch {
+      news.raw = text;
+    }
+    const txw = db.transaction("news", "readwrite");
+    txw.store.add(news);
+    items.value.unshift(news); // 最新的放最前
+    sendNotification(news);
+  };
+
+  es.onerror = (e) => {
+    console.error("stream error", e);
+    es.close();
+    setTimeout(connectStream, delay);
+  };
 }
 
 /* ========== 初始化 ========== */
@@ -247,7 +241,7 @@ onMounted(async () => {
 
 <style scoped>
 .item-wrapper {
-  padding-bottom: 1rem;   /* 原来的 mb-4 */
+  padding-bottom: 1rem; /* 原来的 mb-4 */
   box-sizing: border-box;
 }
 </style>
